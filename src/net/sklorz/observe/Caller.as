@@ -18,6 +18,13 @@ package net.sklorz.observe
 		{
 			if (observer[signal])
 			{
+				var list:Vector.<Function> = Vector.<Function>(observer[signal]);
+				if(list.indexOf(callback) >= 0) 
+				{
+					trace("Caller.addCallback(" + signal, callback + ") : Callback already added for signal");
+					return;
+				} 
+				
 				Vector.<Function>(observer[signal]).push(callback);
 			}
 			else
@@ -37,7 +44,18 @@ package net.sklorz.observe
 			if (list != null)
 			{
 				var i:int = list.indexOf(callback);
+				
+				if(i < 0)
+				{
+					trace("Caller.removeCallback(" + signal, callback + ") : Callback not found for signal");
+					return;
+				}
+				
 				if(i >= 0) list.splice(i, 1);
+			}
+			else
+			{
+				trace("Caller.removeCallback(" + signal, callback + ") : No callbacks available for signal");
 			}
 		}
 		
@@ -55,6 +73,10 @@ package net.sklorz.observe
 				{
 					vtmp[i](value);
 				}
+			}
+			else
+			{
+				trace("Caller.call(" + signal, value + ") : No callbacks available for signal");
 			}
 		}
 	}
