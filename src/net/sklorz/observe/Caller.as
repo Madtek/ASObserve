@@ -79,5 +79,17 @@ package net.sklorz.observe
 				trace("Caller.call(" + signal, value + ") : No callbacks available for signal");
 			}
 		}
+		
+		/**
+		 * Removes all callbacks.
+		 */
+		public function dispose() : void 
+		{
+			for (var v:String in observer) 
+			{
+				Vector.<Function>(observer[v]).length = 0;
+				delete observer[v];
+			}
+		}
 	}
 }
