@@ -5,79 +5,209 @@ package net.sklorz.observe
 	/**
 	 * Simple callback Manager
 	 * 
-	 * @author Gregor Sklorz
+	 * @author gregor@sklorz.net
 	 */ 
 	public class Caller
 	{
-		public var observer:Dictionary = new Dictionary();
+		private var _observer:Dictionary = new Dictionary();
 		
 		/**
 		 * Add a new callback Function for notifications.
+		 * 
+		 * Callback format:
+		 * public function callback( para:Object ):void;
+		 * 
+		 * If the signal parameter is not given, this callback will be called on each call().
+		 * 
+		 * @param callback The function which should be called by the the call() method.
+		 * @param signal A specific String ID for the callback shall be called.
+		 * @return false if callback could not be added
 		 */ 
-		public function addCallback(signal:String, callback:Function):void 
+		public function addCallback(callback:Function, signal:String = null):Boolean 
 		{
-			if (observer[signal])
+			var list:Vector.<Function>;
+			
+			if(signal == null)
 			{
-				var list:Vector.<Function> = Vector.<Function>(observer[signal]);
-				if(list.indexOf(callback) >= 0) 
-				{
-					trace("Caller.addCallback(" + signal, callback + ") : Callback already added for signal");
-					return;
-				} 
-				
-				Vector.<Function>(observer[signal]).push(callback);
+				list = new Vector.<Function>();
+				_observer[this] = list;
+			}
+			else if (_observer[signal])
+			{
+				list = Vector.<Function>(_observer[signal]);
 			}
 			else
 			{
-				var vtmp:Vector.<Function> = new Vector.<Function>();
-				vtmp.push(callback);
-				observer[signal] = vtmp;
+				list = new Vector.<Function>();
+				_observer[signal] = list;
 			}
+			
+			if(list.indexOf(callback) >= 0) 
+			{
+				trace("Caller.addCallback(" + callback, signal + ") : Callback already added for signal");
+				return false;
+			} 
+			
+			list.push(callback);
+			return true;
+		}
+		
+		/**
+		 * Checks if the give callback is already registerd at this caller.
+		 * If the signal parameter is not given, all signls will be checked.
+		 * 
+		 * @param callback The callback which is searched.
+		 * @param signal Check if this specific signal is listening for the given callback.
+		 * @return Whether the callback was found or not.
+		 */
+		public function hasCallback(callback:Function, signal:String = null) : Boolean 
+		{
+			var list:Vector.<Function>;
+			
+			if(signal != null)
+			{
+				list = Vector.<Function>(_observer[signal]);
+				
+				if(list != null)
+				{
+					return list.indexOf(callback) >= 0;
+				}	
+			}
+			else
+			{
+				for each (var vec : Vector.<Function> in _observer)
+				{
+					if(vec.indexOf(callback) >= 0)
+					{
+						return true;
+					}
+				}
+			}
+			
+			return false;
 		}
 
+		
 		/**
-		 * Removes a callback Function 
+		 * Removes a callback Function.
+		 * 
+		 * If no signal parameter is given, callback will be removed from each signal.
+		 * 
+		 * @param callback The function which shall be removed.
+		 * @param signal The signal from which the given callback shall be removed.
+		 * @return false if callback could not be removed.
 		 */ 
-		public function removeCallback(signal:String, callback:Function):void 
+		public function removeCallback(callback:Function, signal:String = null):Boolean 
 		{
-			var list:Vector.<Function> = Vector.<Function>(observer[signal]);
-			if (list != null)
+			var list:Vector.<Function>;
+			var i:int;
+			var found:Boolean = false;
+			
+			if(signal != null)
 			{
-				var i:int = list.indexOf(callback);
+				list = Vector.<Function>(_observer[signal]);
+				
+				if(!list)
+				{
+					trace("Caller.removeCallback(" + callback, signal + ") : No callbacks available for signal.");
+					return false;
+				}
+				
+				i = list.indexOf(callback);
 				
 				if(i < 0)
 				{
-					trace("Caller.removeCallback(" + signal, callback + ") : Callback not found for signal");
-					return;
+					trace("Caller.removeCallback(" + callback, signal + ") : Callback not found for signal.");
+					return false;
 				}
 				
-				if(i >= 0) list.splice(i, 1);
+				list.splice(i, 1);
 			}
 			else
 			{
-				trace("Caller.removeCallback(" + signal, callback + ") : No callbacks available for signal");
+				for each (list in _observer)
+				{
+					i = list.indexOf(callback);
+					
+					if(i < 0)
+					{
+						continue;
+					}
+					
+					found = true;
+					list.splice(i, 1);
+				}
+				
+				if (!found)
+				{
+					trace("Caller.removeCallback(" + callback + ") : Callbacks not found.");
+					return false;
+				}
 			}
+			
+			return true;
 		}
 		
 		/**
 		 * Calls the specific callbacks to all callbacks
+		 * 
+		 * If no signal is given, each callback will be called.
+		 * 
+		 * @param value The Object which is supported to the called callbacks.
+		 * @param signal The signal which shall be called.
+		 * @return false if no callback could be called.
 		 */
-		public function call(signal:String, value:Object):void
+		public function call(value:Object, signal:String = null):Boolean
 		{
-			if (observer[signal] != null)
+			var list:Vector.<Function>;
+			var found:Boolean = false;
+			var j:int; 
+			var n:int;
+			
+			if(signal != null)
 			{
-				var vtmp:Vector.<Function> = Vector.<Function>().concat();
-				var i:int; 
-				var n:int = vtmp.length;
-				for (i = 0; i < n; i++)
+				if(!_observer[signal])
 				{
-					vtmp[i](value);
+					trace("Caller.call(" + value, signal + ") : No callbacks available for signal.");
+					return false;
+				}
+				
+				list = Vector.<Function>(_observer[signal]);
+				
+				if(list.length == 0)
+				{
+					trace("Caller.call(" + value, signal + ") : No callbacks available for signal.");
+					return false;
+				}
+				
+				list = list.concat();
+				n = list.length;
+				for (j = 0; j < n; j++)
+				{
+					list[j](value);
 				}
 			}
 			else
 			{
-				trace("Caller.call(" + signal, value + ") : No callbacks available for signal");
+				for each (list in _observer)
+				{
+					list = list.concat();
+					n = list.length;
+					for (j = 0; j < n; j++)
+					{
+						found = true;
+						list[j](value);
+					}
+				}
+				
+				if (!found)
+				{
+					trace("Caller.call(" + value + ") : Callbacks not found.");
+					return false;
+				}
 			}
+			
+			return true;
 		}
 		
 		/**
@@ -85,10 +215,14 @@ package net.sklorz.observe
 		 */
 		public function dispose() : void 
 		{
-			for (var v:String in observer) 
+			for each (var vec:Vector.<Function> in _observer)
 			{
-				Vector.<Function>(observer[v]).length = 0;
-				delete observer[v];
+				vec.length = 0;
+			}
+			
+			for (var signal:Object in _observer) 
+			{
+				delete _observer[signal];
 			}
 		}
 	}
